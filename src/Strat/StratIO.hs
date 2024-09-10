@@ -17,11 +17,10 @@ module Strat.StratIO
 
 import qualified Control.Concurrent.Async as Async
 import Control.Exception (assert)
-import Control.Logger.Simple
+import Control.Logger.Simple ( logInfo )
 import Control.Monad.Reader
 import qualified Data.List as List (delete)
 import Data.Hashable
-import Data.Maybe
 import Data.Text (pack, append)
 import Data.Tree (Tree)
 import qualified Data.Tree as T
@@ -40,10 +39,27 @@ searchToSingleThreaded t gen maxDepth maxCritDepth = do
     evalTreeSingleThreaded expanded gen
 
 searchToMultiThreaded :: (Z.ZipTreeNode n, Hashable n, Ord n, Show n, Eval n, RandomGen g, Z.HasZipTreeEnv r)
-         => Tree n -> Maybe g -> Int -> Int -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
-searchToMultiThreaded t gen maxDepth maxCritDepth = do
-    expanded <- expandToParallel t maxDepth maxCritDepth
-    evalTreeMultiThreaded expanded gen
+         => Tree n -> Maybe g -> Int -> Int -> Int
+         -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
+searchToMultiThreaded initialTree gen maxDepth maxCritDepth maxQuietDepth = do
+  let loop tree g maxD maxCD = do
+        expanded <- expandToParallel tree maxD maxCD
+        result <- evalTreeMultiThreaded expanded g
+        case result of
+          Right (t, nr) -> return (t, nr)
+          Left (t, nr) -> do
+            if maxCD == maxQuietDepth
+              then do
+                let s = printf "***** Warning - reached maxQuietDepth (%d) without a quiet move." maxCD
+                liftIO $ putStrLn s
+                liftIO $ logInfo $ pack s
+                return (t, nr)
+              else do
+                let s = printf "***** expanding the search to level: %d" (maxCD + 1)
+                liftIO $ putStrLn s
+                liftIO $ logInfo $ pack s
+                loop t g maxD (maxCD + 1)
+  loop initialTree gen maxDepth maxCritDepth
 
 evalTreeSingleThreaded :: (Z.ZipTreeNode n, Hashable n, Ord n, Show n, Eval n, RandomGen g, Z.HasZipTreeEnv r)
          => Tree n -> Maybe g -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
@@ -54,22 +70,22 @@ evalTreeSingleThreaded t gen = do
     return (t, res)
 
 evalTreeMultiThreaded :: (Z.ZipTreeNode n, Hashable n, Ord n, Show n, Eval n, RandomGen g, Z.HasZipTreeEnv r)
-         => Tree n -> Maybe g -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
+         => Tree n -> Maybe g -> Z.ZipTreeM r (Either (Tree n, Z.NegaResult n) (Tree n, Z.NegaResult n))
 evalTreeMultiThreaded t gen = do
     r <- ask
     let env = Z.zte r
     res <- negaMaxParallel env t gen
-    return (t, res)
+    case res of
+        Left r -> return $ Left (t, r)
+        Right r -> return $ Right (t, r)
+
 
 expandToParallel :: (Ord a, Show a, ZipTreeNode a, HasZipTreeEnv r)
                  => T.Tree a -> Int -> Int -> Z.ZipTreeM r (T.Tree a)
 expandToParallel t depth critDepth = do
     -- expansion of at least one level should always have been previously done
-    let s = printf "\nexpandToParallel called with depth:%d, critDepth:%d" depth critDepth
-    liftIO $ logInfo $ pack $ s
     let (tSize, tLevels)  = treeSize t
-    liftIO $ logInfo $ "Tree size: " `append` pack (show tSize)
-    liftIO $ logInfo $ pack (show tLevels)
+    liftIO $ logInfo $ "Tree size: " `append` pack (show tLevels)
     let _num_levels = assert (length tLevels >= 2) (length tLevels)
     let theChildren = T.subForest t
     liftIO $ logInfo $ pack $ printf "expandToParallel -- number of threads that will be created: %d" (length theChildren)
@@ -88,10 +104,9 @@ expandToSingleThreaded t depth critDepth = do
   Z.expandTo t 1 depth critDepth
 
 negaMaxParallel :: (Ord a, Show a, ZipTreeNode a, Hashable a, RandomGen g, HasZipTreeEnv r)
-        => Z.ZipTreeEnv -> T.Tree a -> Maybe g -> Z.ZipTreeM r (NegaResult a)
+        => Z.ZipTreeEnv -> T.Tree a -> Maybe g -> Z.ZipTreeM r (Either (NegaResult a) (NegaResult a))
 negaMaxParallel env t gen = do
     let theChildren = T.subForest t
-
     resultsList <- liftIO $ Async.forConcurrently theChildren (\x -> do
         (threadTC, threadEC) <- runReaderT (Z.negaWorker x) env
         let threadNode = T.rootLabel x
@@ -101,25 +116,27 @@ negaMaxParallel env t gen = do
     let initTC = if sign == Pos then Min else Max
     let curried = foldf sign
     let (theBestTC, ec::Int) = foldr curried (initTC, 0) resultsList
-
-    -- TODO: combine this with the code in Strat.ZipTree.negaRnd
-    if enableRandom env && isJust gen
-      then do
-        let theGen = fromJust gen
-        let curriedAltf = foldfAlts sign (maxRandomChange env) theBestTC
-        let theAlts = foldr (curriedAltf . fst) [] resultsList
-        let allChoices = theBestTC : theAlts
-        let pickedTC = Z.pickOne theGen allChoices
-        let notPicked = List.delete pickedTC allChoices
-        return NegaResult { picked = toNegaMoves pickedTC
-                          , bestScore = toNegaMoves theBestTC
-                          , alternatives = toNegaMoves <$> notPicked
-                          , evalCount = ec }
-      else
-        return $ NegaResult { picked = toNegaMoves theBestTC
-                            , bestScore = toNegaMoves theBestTC
-                            , alternatives = []
-                            , evalCount = ec }
+    let curriedAltf = foldfAlts sign (maxRandomChange env) theBestTC
+    let theAlts = foldr (curriedAltf . fst) [] resultsList
+    let theBestChoices = theBestTC : theAlts
+    let allChoices = fst <$> resultsList
+    case Z.pickQuietMove gen sign theBestChoices allChoices of
+        Right tc -> do
+            let notPicked = List.delete tc theBestChoices
+            let picked = toNegaMoves tc
+            return $ Right $ NegaResult { picked
+                                      , bestScore = toNegaMoves theBestTC
+                                      , alternatives = toNegaMoves <$> notPicked
+                                      , evalCount = ec }
+        Left (tc, s) -> do
+            liftIO $ putStrLn s
+            liftIO $ logInfo $ pack s
+            let notPicked = List.delete tc theBestChoices
+            let picked = toNegaMoves tc
+            return $ Left $ NegaResult { picked
+                                      , bestScore = toNegaMoves theBestTC
+                                      , alternatives = toNegaMoves <$> notPicked
+                                      , evalCount = ec }
     where
         foldf :: forall a. (Ord a, Show a, ZipTreeNode a, Hashable a)
               => Sign

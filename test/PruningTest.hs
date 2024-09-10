@@ -55,6 +55,7 @@ testEnv = ZipTreeEnv
         , moveTraceStr = pack ""
         , maxDepth = 5
         , maxCritDepth = 5
+        , maxQuietDepth = 5
         , aiPlaysWhite = True
         , aiPlaysBlack = True
         }

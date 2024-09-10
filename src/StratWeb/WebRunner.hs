@@ -44,6 +44,7 @@ gameEnv = Z.ZipTreeEnv
         , moveTraceStr = pack ""
         , maxDepth = 6
         , maxCritDepth = 10
+        , maxQuietDepth = 14
         , aiPlaysWhite = False
         , aiPlaysBlack = True
         }
@@ -101,7 +102,7 @@ processPlayerMove t mv bComputerResponse rnds = do
 computerResponse :: RandomGen g => Tree Ck.CkNode -> g -> IO NodeWrapper
 computerResponse prevNode gen = do
    (expandedT, result@Z.NegaResult{..}) <- searchTo prevNode (Just gen) (Z.maxDepth gameEnv)
-                                           (Z.maxCritDepth gameEnv)
+                                           (Z.maxCritDepth gameEnv) (Z.maxQuietDepth gameEnv)
    putStrLn "\n--------------------------------------------------\n"
    let details = getMoveChoiceInfo expandedT result
    printMoveChoiceInfo expandedT result -- converts <br> to \n
@@ -128,11 +129,11 @@ computerResponse prevNode gen = do
               return $ createUpdate details prevNode newTree ms
 
 searchTo :: (Z.ZipTreeNode a, Hashable a, Ord a, Show a, Eval a, RandomGen g)
-         => Tree a -> Maybe g -> Int -> Int -> IO (Tree a, Z.NegaResult a)
-searchTo t gen depth critDepth = do
+         => Tree a -> Maybe g -> Int -> Int -> Int -> IO (Tree a, Z.NegaResult a)
+searchTo t gen depth critDepth quietDepth = do
     if Z.singleThreaded gameEnv
       then liftIO $ runReaderT (searchToSingleThreaded t gen depth critDepth) gameEnv
-      else liftIO $ runReaderT (searchToMultiThreaded t gen depth critDepth) gameEnv
+      else liftIO $ runReaderT (searchToMultiThreaded t gen depth critDepth quietDepth) gameEnv
 
 checkGameOver :: Tree Ck.CkNode -> (Bool, String)
 checkGameOver node =

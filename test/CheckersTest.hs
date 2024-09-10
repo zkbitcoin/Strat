@@ -34,6 +34,7 @@ testEnv = Z.ZipTreeEnv
         , Z.moveTraceStr = T.pack ""
         , Z.maxDepth = 5
         , Z.maxCritDepth = 5
+        , Z.maxQuietDepth = 5
         , Z.aiPlaysWhite = True
         , Z.aiPlaysBlack = True
         }

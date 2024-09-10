@@ -178,6 +178,7 @@ locToInt (Parser.Loc c d) =
 toParserMove :: ChessMove -> Parser.Entry
 toParserMove StdMove {..} = Parser.Move $ intToParserLoc _startIdx : [intToParserLoc _endIdx]
 toParserMove CastlingMove{..} = Parser.Move $ intToParserLoc _kingStartIdx : [intToParserLoc _kingEndIdx]
+toParserMove EnPassantMove{..} = Parser.Move $ intToParserLoc _epStartIdx : [intToParserLoc _epEndIdx]
 
 instance Show ChessMove where
   show stm@StdMove {..} =
@@ -584,6 +585,8 @@ countMaterial g =
           else theTotal + pieceVal (charToPiece ch)
 
 {- TODOs:
+-- Fix: a capture at the end of a move path, where the path is less than critDepth
+--      is not critical -- the position must be final
 -- Convert more stored positions to FEN
 -- Add :? cmd that shows the available commands
 -- Add warning message if non-quiet move chosen, consider not picking those
@@ -601,6 +604,9 @@ countMaterial g =
 --    change level
 -- Limit positive score eval for moves like A7-A6 only when there is a knight at A3 or C3
 -- Add :help for text mode commands
+-- Configure so logging info is not sent to terminal when playing in text mode
+-- Take first pass at reducing tree node size
+-- Return friendly error after entering something like " e2 e4"
 -- And add evaluation scores for:
       score penalty if pawns at both A3 and B3, etc.
       outposts
@@ -1534,6 +1540,7 @@ checkQueen g False mv =
                 'Q' -> True
                 _   -> False
         CastlingMove{}  -> False
+        EnPassantMove{} -> False
 
 isCritical :: ChessNode -> Bool
 isCritical cn =
@@ -1543,12 +1550,11 @@ isCritical cn =
                 Just _ -> True
                 Nothing -> False
               _ -> False
+    {- this turns out to be a bad idea...
         pos = cn ^. chessPos
         clr = pos ^. (cpState . cpsColorToMove)
-    {- this turns out to be a bad idea...
-         isInCheck = colorToTupleElem clr (pos ^. cpInCheck)
+        isInCheck = colorToTupleElem clr (pos ^. cpInCheck)
     in isAnExchange || isInCheck -}
-
     in isAnExchange
 
 ---------------------------------------------------------------------------------------------------
@@ -2059,7 +2065,8 @@ mkCastleMove _ QueenSide = CastlingMove
   , _castleNote = "O-O-O" }
 
 castle' :: ChessGrid -> ChessMove -> ChessGrid
-castle' _g StdMove{} = error "This shouldn't happen..."
+castle' _g StdMove{} = error "This shouldn't happen (StdMove) ..."
+castle' _g EnPassantMove{} = error "This shouldn't happen (EnPassantMove) ..."
 castle' g cm@CastlingMove{..} =
   let gTemp = movePiece' g cm _kingStartIdx _kingEndIdx
   in movePiece' gTemp cm _rookStartIdx _rookEndIdx
@@ -2278,6 +2285,7 @@ pairToIndexes (xs, ys) = ( fmap moveToIndex  xs
 moveToIndex :: ChessMove -> Int
 moveToIndex CastlingMove{..} = _kingEndIdx
 moveToIndex StdMove{..} = _endIdx
+moveToIndex EnPassantMove{..} = _epEndIdx
 
 ----------------------------------------------------------------------------------------------------
 -- Calculate the set of all possible moves for the given position & the position's color
@@ -3922,6 +3930,7 @@ Moves to get there, starting from a new game:
 D2-D4, D7-D5
 C2-C4, E7-E6
 G1-F3, F1-B4+
+C1-D2, B4xD2
 B1xD2, errore...
 
 run params:
