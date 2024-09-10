@@ -29,8 +29,6 @@ main = do
       setLogLevelStr $ pack logLevel
       case exampleName of
         "chess" -> do
-            -- printf "restoreGame: %s\n" restoreGame
-            -- printf "loadFromFed: %s\n" loadFromFen
             if restoreGame /= "newgame" && loadFromFen /= ""
               then do
                 putStrLn "Choose either --restoreGame or --fen, but not both"
@@ -55,13 +53,14 @@ main = do
                     putStrLn "Invalid FEN format"
                     print theArgs
                   Just (startNode, startState) -> do
-                    GameRunner.startGame ChessText startNode startState depth critDepth aiPlaysWhite
-                        aiPlaysBlack preSortOn (not noRandom) (not noPruning) singleThreaded
-                        pruneTracing cmpTracing (pack traceStr)
+                    GameRunner.startGame ChessText startNode startState depth critDepth quietDepth
+                        aiPlaysWhite aiPlaysBlack preSortOn (not noRandom) (not noPruning)
+                        singleThreaded pruneTracing cmpTracing (pack traceStr)
         "checkers" -> do
             let (startNode, startState) = Checkers.getStartNode restoreGame
-            GameRunner.startGame CheckersText startNode startState depth critDepth aiPlaysWhite aiPlaysBlack
-              preSortOn (not noRandom) (not noPruning) singleThreaded pruneTracing cmpTracing (pack traceStr)
+            GameRunner.startGame CheckersText startNode startState depth critDepth quietDepth
+                aiPlaysWhite aiPlaysBlack preSortOn (not noRandom) (not noPruning)
+                singleThreaded pruneTracing cmpTracing (pack traceStr)
         "checkersWeb" -> webInit
         s ->  putStrLn (s ++ " is not a valid example name. Valid choices: chess, checkers, and checkersWeb")
 
@@ -85,6 +84,7 @@ data StratArgs = StratArgs
   { exampleName :: String
   , depth :: Int
   , critDepth :: Int
+  , quietDepth :: Int
   , noRandom :: Bool
   , noPruning :: Bool
   , restoreGame :: String
@@ -105,7 +105,8 @@ stratArgs :: StratArgs
 stratArgs = StratArgs
   { exampleName = "chess" &= name "n" &= help "The example to run"
   , depth = 4 &= help "Tree search depth"
-  , critDepth = 6 &= help "Tree search depth for critical moves"
+  , critDepth = 6 &= help "Tree search depth for critical moves (>= depth)"
+  , quietDepth = 8 &= help "Tree search depth for resolving non-quiescent moves (>= critDepth)"
   , noRandom = False &= name "nr" &= help "Turn off randomness used in the computer's move selection"
   , noPruning = False &= name "p" &= help "Turn off alpha-beta pruning (for debugging only)"
   , restoreGame = "newgame" &= help "Game name to restore"
@@ -114,8 +115,8 @@ stratArgs = StratArgs
   , aiPlaysWhite = False &= name "white-ai" &= help "The computer plays the white pieces"
   , aiPlaysBlack = True &= name "black-ai" &= help "The computer plays the black pieces"
   , preSortOn = False &= name "presort" &= help "Enable shallow tree sort before the full eval - (experimental)"
-  , pruneTracing = False &= name "ptracing" &= help "Output prune tracing if traceStr is found in the trace output"
-  , cmpTracing = False &= name "ctracing" &= help "Output negaMax cmp tracing if traceStr is found in the trace output"
+  , pruneTracing = False &= name "ptracing" &= help "Output prune trace if traceStr is found in the trace output"
+  , cmpTracing = False &= name "ctracing" &= help "Output negaMax cmp trace if traceStr is found in the trace output"
   , traceStr = "" &= name "tracestr" &= help "String to search for in trace output"
   , singleThreaded = False &= name "st" &= help "Turn off multi threading (for debugging only)"
   , logLevel = "LogError" &= name "log" &= help "The logging level. One of LogTrace, LogDebug, LogInfo, LogNote, LogWarn, or LogError (LogError is default)"

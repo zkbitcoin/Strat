@@ -35,6 +35,7 @@ testEnv = Z.ZipTreeEnv
         , moveTraceStr = T.pack ""
         , maxDepth = 5
         , maxCritDepth = 5
+        , maxQuietDepth = 5
         , aiPlaysWhite = True
         , aiPlaysBlack = True
         }
@@ -622,6 +623,7 @@ matchStdMove StdMoveTestData{..} = do
             putStrLn $ printf "ChestTest::matchStdMove - start:%d, end:%d" start end
             liftIO $ return $ start == smtdStartIdx && end == smtdEndIdx
         CastlingMove {} -> liftIO $ return False
+        EnPassantMove {} -> liftIO $ return False
 
 posFromGrid :: ChessGrid -> Color -> (Int, Int) -> Bool -> ChessPos
 posFromGrid g c (kingLocW, kingLocB) inCheck =

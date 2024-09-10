@@ -24,6 +24,7 @@ module Strat.ZipTree
   , NegaResult(..)
   , NegaMoves(..)
   , pickOne
+  , pickQuietMove
   , PositionState(..)
   , showCompactTCList
   , Sign(..)
@@ -37,12 +38,13 @@ module Strat.ZipTree
   , ZipTreeNode(..)
   ) where
 
+import Control.Logger.Simple (pureInfo)
 import Control.Monad.Reader
 import Data.Hashable
 import qualified Data.List as List
 import Data.Text (Text, pack, isInfixOf)
 import qualified Data.Tree as T
-import Data.Tree.Zipper
+import Data.Tree.Zipper hiding (last)
 import GHC.Generics
 import Text.Printf
 import Debug.Trace
@@ -72,6 +74,7 @@ data ZipTreeEnv = ZipTreeEnv
   , moveTraceStr :: Text
   , maxDepth :: Int
   , maxCritDepth :: Int
+  , maxQuietDepth :: Int
   , aiPlaysWhite :: Bool
   , aiPlaysBlack :: Bool
   }
@@ -106,7 +109,7 @@ maxScore = 1000000.0
 minScore :: Float
 minScore = - maxScore
 
-newtype MateIn = MateIn (Maybe (Int, Sign))
+newtype MateIn = MateIn {unMateIn :: Maybe (Int, Sign)}
   deriving (Eq, Show)
 
 data TraceCmp a where
@@ -308,7 +311,7 @@ buildChildren z curDepth goalDepth critDepth = do
     return results
 
 critsOnly :: ZipTreeNode a => [T.Tree a] -> Bool
-critsOnly trees = all (ztnDeepDescend . T.rootLabel) trees
+critsOnly = all (ztnDeepDescend . T.rootLabel)
 
 zipFoldFn :: (Ord a, Show a, ZipTreeNode a, HasZipTreeEnv r)
   => Int -> Int -> Int
@@ -426,8 +429,6 @@ tcFromT t movePath lvl =
                else Nothing)
         in
           TraceCmp {node, movePath, value, mateIn, alts = []}
-
-
 
   -- TODO: remove this
 kingCaptureRisk :: (Ord a, Show a, ZipTreeNode a) => a -> Bool
@@ -634,10 +635,69 @@ negaRnd t gen = do
                       , alternatives = toNegaMoves <$> notPicked
                       , evalCount = ec }
 
+-- randomly pick among the list
 pickOne :: RandomGen g => g -> [TraceCmp a] -> TraceCmp a
 pickOne gen choices =
     let (r, _g) = randomR (0, length choices - 1) gen
     in choices !! r
+
+-- pick the one with the best score from the list
+bestOne :: (Ord a, Show a, ZipTreeNode a, Hashable a)
+        => [TraceCmp a] -> Sign -> TraceCmp a
+bestOne choices sign =
+    foldr (foldf sign) (head choices) choices -- choices is never empty
+  where
+      foldf :: forall a. (Ord a, Show a, ZipTreeNode a, Hashable a)
+            => Sign -> TraceCmp a -> TraceCmp a -> TraceCmp a
+      foldf Pos tc tcAcc = maxTC tcAcc tc
+      foldf Neg tc tcAcc = minTC tcAcc tc
+
+-- returns Right if the move is quiet
+-- if there are no quiet moves to pick from, returns the best one as Left
+pickQuietMove :: (RandomGen g, Ord a, Show a, ZipTreeNode a, Hashable a)
+              => Maybe g -> Sign -> [TraceCmp a] -> [TraceCmp a] -> Either (TraceCmp a, String) (TraceCmp a)
+pickQuietMove gen sign preferred allMoves =
+    let !preferredQuiet = filter isQuiet preferred
+        str = printf "%d quiet moves out of %d" (length preferredQuiet) (length preferred)
+        pqLen = pureInfo (pack (str ++ "\n" ++ showCompactTCList preferredQuiet)) (length preferredQuiet)
+    in if pqLen /= 0
+        then
+           case gen of
+               Just g -> -- with randomness
+                   Right $ pickOne g preferredQuiet
+               Nothing  -> -- no randomness
+                   Right $ bestOne preferredQuiet sign
+        else
+           let allQuiet = filter isQuiet allMoves
+           --
+           -- in if null allQuiet
+           --     then Left ( (bestOne allMoves sign)
+           --               , "***** WARNING ***** No quiet moves at at this depth!" )
+           --     else Left ( (bestOne allQuiet sign)
+           --               , "***** WARNING ***** None of the preferred moves were quiet" )
+           --
+               str = printf "preferred moves that are not quiet:\n%s" (show preferred)
+           in if null allQuiet
+               then
+                  let !tmp = Left ( bestOne allMoves sign
+                                  , "***** WARNING ***** No quiet moves at at this depth!" )
+                  in pureInfo (pack str) tmp
+               else
+                 let !tmp = Left ( bestOne allQuiet sign
+                                 , "***** WARNING ***** None of the preferred moves were quiet" )
+                 in pureInfo (pack str) tmp
+           --
+
+isQuiet :: (Ord a, Show a, ZipTreeNode a, Hashable a)
+        => TraceCmp a -> Bool
+isQuiet Max = True
+isQuiet Min = True
+isQuiet TraceCmp{..} =
+  case unMateIn mateIn of
+      Just n -> True -- mate in n moves is a quiet position
+      Nothing ->
+          let deepest = head movePath
+          in not (ztnDeepDescend deepest) -- if not critical
 
 isWithin :: (Show a, Eq a, ZipTreeNode a) => Sign -> Float -> TraceCmp a -> TraceCmp a -> Bool
 isWithin _sign _maxRndChg TraceCmp {mateIn = MateIn (Just _)} TraceCmp {mateIn = MateIn Nothing}  = False

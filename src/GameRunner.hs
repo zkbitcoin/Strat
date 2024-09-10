@@ -53,9 +53,9 @@ instance HasRunnerData RunnerZipTreeEnv where
 -- TODO: make a record/type for all these flags...
 startGame :: ( Output o n m, TreeNode n m, Z.ZipTreeNode n, Ord n, Eval n
              , Hashable n, Z.PositionState p)
-          => o -> Tree n -> p -> Int -> Int -> Bool -> Bool -> Bool
+          => o -> Tree n -> p -> Int -> Int -> Int -> Bool -> Bool -> Bool
           -> Bool -> Bool -> Bool -> Bool -> Bool -> Text -> IO ()
-startGame o node startState maxDepth maxCritDepth aiPlaysWhite aiPlaysBlack
+startGame o node startState maxDepth maxCritDepth maxQuietDepth aiPlaysWhite aiPlaysBlack
           enablePreSort enableRandom enablePruning singleThreaded
           enablePruneTracing enableCmpTracing moveTraceStr = do
   let ztEnv = Z.ZipTreeEnv
@@ -68,6 +68,7 @@ startGame o node startState maxDepth maxCritDepth aiPlaysWhite aiPlaysBlack
         , Z.moveTraceStr
         , Z.maxDepth
         , Z.maxCritDepth
+        , Z.maxQuietDepth
         , Z.aiPlaysWhite
         , Z.aiPlaysBlack
         , Z.singleThreaded
@@ -93,6 +94,7 @@ startGameLoop r o node = do
     when (Z.enablePruneTracing env) $
       logInfo $ pack $ printf "***** Prune tracing for: |%s| is ON *****" (Z.moveTraceStr env)
     logInfo $ "critDepth: " `append` pack (show (Z.maxCritDepth env))
+    logInfo $ "quietDepth: " `append` pack (show (Z.maxQuietDepth env))
     rnd <- if Z.enableRandom env
              then
                Just <$> getStdGen
@@ -175,14 +177,17 @@ computersTurn :: (Output o n m, TreeNode n m, Z.ZipTreeNode n, Hashable n, Ord n
               => Maybe g-> o -> Tree n -> [n] -> Z.ZipTreeM r (Tree n, [n])
 computersTurn gen o t nodeHistory = do
     r <- ask
-    let env = Z.zte r
-    (sec, (newRoot, updatedHistory)) <- duration $ do
-        (expandedT, result) <- searchTo t gen (Z.maxDepth env) (Z.maxCritDepth env)
+    (sec, (newRoot, updatedHistory, isCrit)) <- duration $ do
+        (expandedT, result) <- searchTo t gen
         liftIO $ putStrLn "\n--------------------------------------------------\n"
         liftIO $ showCompMove o expandedT result True
         let nextNode = Z.nmNode (Z.picked result)
         let nextMove = getMove nextNode
-        return (findMove expandedT nextMove, nextNode:nodeHistory)
+        let crit =
+              let path = Z.nmMovePath (Z.picked result)
+                  lst = last path -- path is never empty
+              in Z.ztnDeepDescend lst
+        return (findMove expandedT nextMove, nextNode:nodeHistory, crit)
     liftIO $ logInfo $ "Computer move time: " `append` pack (showDuration sec)
     let nMoves = moveNum $ rootLabel t
     let divisor :: Double = fromIntegral ((nMoves `div` 2) + 1)
@@ -197,7 +202,11 @@ computersTurn gen o t nodeHistory = do
     liftIO $ logInfo $ "Average computer move time: "  `append` pack (showDuration avgTime)
         `append` pack "\n"
     case newRoot of
-        Right r -> return (r, updatedHistory)
+        Right r -> do
+          --TODO: is TreeNode.critical being used?
+          when isCrit $ do
+              liftIO $ putStrLn "Warning computer move NOT quiescent! (remove this message)"
+          return (r, updatedHistory)
         Left s -> do
           let newNodeMoves = possibleMoves (rootLabel t)
           liftIO $ putStrLn $ "Available moves:" ++ show newNodeMoves
@@ -218,14 +227,18 @@ isCompTurn sign = do
           | aiPlaysBlack -> True
           | otherwise -> False
 
+-- TODO: the depth and critDepth from the env and remove the two parameters
 searchTo :: (Z.ZipTreeNode n, Hashable n, Ord n, Show n, Eval n, RandomGen g, Z.HasZipTreeEnv r)
-         => Tree n -> Maybe g -> Int -> Int -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
-searchTo t gen depth critDepth = do
+         => Tree n -> Maybe g -> Z.ZipTreeM r (Tree n, Z.NegaResult n)
+searchTo t gen = do
     r <- ask
     let env = Z.zte r
+    let depth = Z.maxDepth env
+    let critDepth = Z.maxCritDepth env
+    let quietDepth = Z.maxQuietDepth env
     if Z.singleThreaded env
-      then searchToSingleThreaded t gen depth critDepth
-      else searchToMultiThreaded t gen depth critDepth
+        then searchToSingleThreaded t gen depth critDepth
+        else searchToMultiThreaded t gen depth critDepth quietDepth
 
 processUndo :: (TreeNode n m, Z.HasZipTreeEnv r) => [n] -> Z.ZipTreeM r (Maybe (Tree n, [n]))
 processUndo ns = do

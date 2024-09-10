@@ -42,6 +42,7 @@ showBoard :: ChessNode -> IO ()
 showBoard n = do
   let board = formatBoard n
   putStrLn $ "\n" ++ board
+  logInfo $ pack $ "\n" ++ board
   logInfo $ "Board hash: " `append` pack (show (nodeHash n))
 
 printMoveChoiceInfo :: Tree ChessNode -> NegaResult ChessNode -> Bool -> IO ()
@@ -53,8 +54,8 @@ printMoveChoiceInfo tree result loud = do
     logInfo $ pack $ show tLevels
     logInfo $ pack $ printf "Evaluated: %d (percent saved by pruning: %f)"
                       evaluated percentSaved
-    logInfo $ "Move with best score: " `append` pack (show (bestScore result))
-    logInfo $ "(*) Computer's move: " `append` pack (show (picked result))
+    logInfo $ "Move with best score:\n" `append` pack (show (bestScore result))
+    logInfo $ "(*) Computer's move:\n" `append` pack (show (picked result))
     putStrLn ("(*) Computer's move: " ++ show (picked result))
 
     let mv = getMove (nmNode (picked result))
