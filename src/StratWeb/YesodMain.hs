@@ -22,19 +22,22 @@ import qualified Data.Map.Strict as M
 import Network.Wai.Middleware.Cors
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
+import System.Environment (lookupEnv)
+import qualified Data.ByteString.Char8 as BS
 
-corsPolicy :: CorsResourcePolicy
---corsPolicy = simpleCorsResourcePolicy
----    { corsOrigins = Just (["http://localhost:8080"], True) -- Allow requests from localhost:8080 only
----    , corsMethods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"] -- Allowed HTTP methods
---    , corsRequestHeaders = ["Content-Type", "Authorization", "X-Requested-With"] -- Allowed request headers
---    }
+corsPolicy :: IO CorsResourcePolicy
+corsPolicy = do
+    corsOriginsEnv <- lookupEnv "CORS_ORIGINS"
 
-corsPolicy = simpleCorsResourcePolicy
-     { corsOrigins = Just (["http://localhost:3000", "http://localhost:4000"], True) -- Allow requests from localhost:3000 and localhost:8080
-            , corsMethods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]  -- Specify allowed methods
-            , corsRequestHeaders = ["Content-Type", "Accept", "If-None-Match"]  -- Include If-None-Match
-            }
+    let origins = case corsOriginsEnv of
+            Just originsStr -> map BS.pack $ words $ map (\c -> if c == ',' then ' ' else c) originsStr
+            Nothing         -> [BS.pack "http://localhost:3000", BS.pack "http://localhost:4000"] -- Default origins
+
+    return $ simpleCorsResourcePolicy
+        { corsOrigins = Just (origins, True)
+        , corsMethods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+        , corsRequestHeaders = ["Content-Type", "Accept", "If-None-Match"]
+        }
 
 staticFilesList "src/StratWeb/Static" ["gameboard.html", "bundle.js", "checker_1_king_48.png",
     "checker_1_plain_48.png", "checker_2_king_48.png", "checker_2_plain_48.png",
@@ -193,8 +196,14 @@ webInit = do
     waiApp <- toWaiApp app
 
     -- Define CORS middleware
+    corsPolicy' <- corsPolicy  -- Get the CORS policy
     let corsMiddleware :: Middleware
-        corsMiddleware = cors (const $ Just corsPolicy)
+        corsMiddleware = cors (const $ Just corsPolicy')
+
+    -- Get the PORT from environment or default to 3000
+    portEnv <- lookupEnv "PORT"
+    let port = maybe 3000 read portEnv :: Int
 
     -- Start the server
-    run 3000 $ corsMiddleware waiApp
+    run port $ corsMiddleware waiApp
+

@@ -58,6 +58,7 @@ library
                 , wai-extra
                 , wai-cors
                 , http-types
+                , dotenv
 
 executable strat-exe
   main-is: Main.hs
@@ -117,6 +118,7 @@ executable strat-exe
                 , wai-extra
                 , wai-cors
                 , http-types
+                , dotenv
 
 executable test-as-exe
   main-is: Main.hs
@@ -184,6 +186,7 @@ executable test-as-exe
                 , wai-extra
                 , wai-cors
                 , http-types
+                , dotenv
     , yesod
     , yesod-core
     , yesod-static
@@ -251,3 +254,4 @@ test-suite StratTreeTest
                 , wai-extra
                 , wai-cors
                 , http-types
+                , dotenv
