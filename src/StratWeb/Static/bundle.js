@@ -10442,7 +10442,7 @@ $(document).ready(function () {
         $('#posPara').toggle('show');
     });
     // attach mouse click handler to each div sqare
-    // also, add html tag holding each piece image 
+    // also, add html tag holding each piece image
     for (var j = 1; j < 9; j++) {
         for (var i = 0; i < 8; i += 2) {
             var iIndex = i + ((j + 1) % 2);
@@ -10543,9 +10543,29 @@ var blackPiece = "checker_2_plain_48.png";
 var whiteKing = "checker_1_king_48.png";
 var blackKing = "checker_2_king_48.png";
 var noPiece = "no_image_48.png";
+//function buildTag(imgId, imgName) {
+//    return "<div class='img-wrapper'><img class='piece' id=" + imgId + " src=" + imgName + "></div>";
+//}
 function buildTag(imgId, imgName) {
-    return "<div class='img-wrapper'><img class='piece' id=" + imgId + " src=" + imgName + "></div>";
+    // Check if window.bundleScriptUrl is defined
+    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
+
+    // Construct full URL for the image
+    const fullUrl = scriptOrigin ? `${scriptOrigin}/static/${imgName}` : imgName;
+
+    // Create the img element using jQuery
+    const imgElement = $("<img>")
+        .attr("src", fullUrl) // Set the src attribute to the full URL
+        .attr("class", "piece") // Set the class
+        .attr("id", imgId) // Set the id
+        [0]; // Get the underlying DOM element
+
+    imgElement.crossOrigin = "Anonymous"; // Set the crossOrigin property
+
+    // Return the complete HTML string
+    return `<div class='img-wrapper'>${imgElement.outerHTML}</div>`;
 }
+
 var imgPrefix = "img-";
 function imageId(col, row) {
     var _id = rowCol2Id(col, row);
@@ -10556,11 +10576,20 @@ function locToImgId(loc) {
     return imgPrefix + _id;
 }
 function clearPieces() {
-    for (var j = 1; j < 9; j++) {
-        for (var i = 0; i < 8; i += 2) {
-            var iIndex = i + ((j + 1) % 2);
-            var imgId = imageId(iIndex, j);
-            $('#' + imgId).attr("src", noPiece);
+    // Check if window.bundleScriptUrl is defined
+    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
+
+    // Construct full URL for noPiece
+    const fullUrl = scriptOrigin ? `${scriptOrigin}/static/${noPiece}` : noPiece;
+
+    for (let j = 1; j < 9; j++) {
+        for (let i = 0; i < 8; i += 2) {
+            const iIndex = i + ((j + 1) % 2);
+            const imgId = imageId(iIndex, j);
+            const imgElement = $('#' + imgId);
+
+            imgElement.attr("src", fullUrl); // Set the src attribute to the full URL
+            imgElement[0].crossOrigin = "Anonymous"; // Set the crossOrigin property
         }
     }
 }
@@ -10624,29 +10653,38 @@ function setLatestMove(move) {
     game.latestMove = move;
 }
 function updateGameBoard(squares) {
-    // clear the board
+    // Clear the board
     clearPieces();
-    // set the pieces
+
+    // Check if window.bundleScriptUrl is defined
+    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
+
+    // Construct full URLs for each piece type
+    const whitePieceUrl = scriptOrigin ? `${scriptOrigin}/static/${whitePiece}` : whitePiece;
+    const blackPieceUrl = scriptOrigin ? `${scriptOrigin}/static/${blackPiece}` : blackPiece;
+    const whiteKingUrl = scriptOrigin ? `${scriptOrigin}/static/${whiteKing}` : whiteKing;
+    const blackKingUrl = scriptOrigin ? `${scriptOrigin}/static/${blackKing}` : blackKing;
+
+    // Set the pieces
     for (var i = 0; i < squares.length; i++) {
         var loc = squares[i].loc;
-        var id = locToId(loc);
         var imgId = locToImgId(loc);
         var imgName;
-        if (squares[i].pieceType == 1) {
-            if (squares[i].color == 1)
-                imgName = whitePiece;
-            else
-                imgName = blackPiece;
+
+        // Determine the image URL based on piece type and color
+        if (squares[i].pieceType == 1) { // If regular piece
+            imgName = squares[i].color == 1 ? whitePieceUrl : blackPieceUrl;
+        } else { // If king
+            imgName = squares[i].color == 1 ? whiteKingUrl : blackKingUrl;
         }
-        else {
-            if (squares[i].color == 1)
-                imgName = whiteKing;
-            else
-                imgName = blackKing;
-        }
-        $('#' + imgId).attr("src", imgName);
+
+        // Load the image
+        const img = new Image();
+        img.crossOrigin = "Anonymous"; // or "use-credentials" if needed
+        img.src = imgName;
+        $('#' + imgId).attr("src", img.src);
     }
-    //autoPlay()
+    // autoPlay();
 }
 //function autoPlay() {
 //$.ajax ({url: "http://localhost:3000/computerMove", success: function(result) {

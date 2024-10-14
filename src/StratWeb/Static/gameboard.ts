@@ -37,7 +37,7 @@ class Square {
 }
 
 class Result {
-    constructor(public msg: string, public prevBoard: Square[], public board: Square[], 
+    constructor(public msg: string, public prevBoard: Square[], public board: Square[],
                 public legalMoves: Moves, public latestMove: MoveScore) {}
 }
 
@@ -53,7 +53,7 @@ class LocationClick {
 }
 
 //column indexes 0-7 -> A-H, row indexes 1-8
-function rowCol2Id(col: number, row: number) { 
+function rowCol2Id(col: number, row: number) {
     return String.fromCharCode(97 + col) + row.toString();
 }
 
@@ -79,49 +79,49 @@ function idToCol(id: string) {
 }
 
 function addCSSClassToLoc(locs: Loc[], cssClass: string) {
-      for (var i = 0; i < locs.length; i++) { 
+      for (var i = 0; i < locs.length; i++) {
         var aLoc = locs[i]
         var anId = locToId(aLoc)
         $('#'+anId).addClass(cssClass);
-    } 
+    }
 }
 
 function rmClassesFromLocs(locs: Loc[]) {
-    for (var i = 0; i < locs.length; i++) { 
+    for (var i = 0; i < locs.length; i++) {
         rmCSSClasses(locs[i]);
-    } 
+    }
 }
 
 function rmClassesFromLCs(lcs: LocationClick[]) {
-    for (var i = 0; i < lcs.length; i++) { 
+    for (var i = 0; i < lcs.length; i++) {
         rmCSSClasses(lcs[i].loc);
-    } 
+    }
 }
 
 function rmCSSClasses(loc: Loc) {
     var anId = locToId(loc);
-    $('#'+anId).removeClass("selected"); 
-    $('#'+anId).removeClass("computermove"); 
-    $('#'+anId).removeClass("playermove"); 
-    $('#'+anId).removeClass("initial"); 
-    $('#'+anId).removeClass("multi"); 
-    $('#'+anId).removeClass("final"); 
+    $('#'+anId).removeClass("selected");
+    $('#'+anId).removeClass("computermove");
+    $('#'+anId).removeClass("playermove");
+    $('#'+anId).removeClass("initial");
+    $('#'+anId).removeClass("multi");
+    $('#'+anId).removeClass("final");
 }
 
-function addSelectedCss(id: string) { 
-    $('#'+id).addClass("selected"); 
+function addSelectedCss(id: string) {
+    $('#'+id).addClass("selected");
 }
 
-function addInitialCss(id: string) { 
-    $('#'+id).addClass("initial"); 
+function addInitialCss(id: string) {
+    $('#'+id).addClass("initial");
 }
 
-function addMultiCss(id: string) { 
-    $('#'+id).addClass("multi"); 
+function addMultiCss(id: string) {
+    $('#'+id).addClass("multi");
 }
 
-function addFinalCss(id: string) { 
-    $('#'+id).addClass("final"); 
+function addFinalCss(id: string) {
+    $('#'+id).addClass("final");
 }
 
 function submitMove(id: string) {
@@ -144,7 +144,7 @@ function submitMove(id: string) {
                 var inits = findInitials(result.legalMoves)
                 clearHighlights();
                 addHighlights(inits);
-              }, 2000); 
+              }, 2000);
         }})
     } else {
         alert ("Invalid move: " + moveToStr(new_move));
@@ -166,7 +166,7 @@ function moveToStr(move: Move) {
 
 function checkLegalMove(new_move: Move) {
     var legal = game.legalMoves.moves;
-    for (var i = 0; i < legal.length; i++) { 
+    for (var i = 0; i < legal.length; i++) {
         var move = legal[i]
         if (compareMoves(move, new_move) == true) {
             return true
@@ -185,43 +185,43 @@ function compareMoves(m1: Move, m2: Move) {
     }
     return true
  }
- 
+
  function compareLocs(loc1: Loc, loc2: Loc) {
-    if (loc1.col.toLowerCase() == loc2.col.toLowerCase() && loc1.row == loc2.row) 
+    if (loc1.col.toLowerCase() == loc2.col.toLowerCase() && loc1.row == loc2.row)
         return true
-     else 
+     else
         return false
- }    
+ }
 
  function findLocInLCs(loc: Loc, lcs: LocationClick[]): number {
     var len = lcs.length;
     //check: is this loc highlighted as a "clickable" square?
     for (var i=0; i < len; i++) {
-        if (compareLocs(loc, lcs[i].loc)) 
+        if (compareLocs(loc, lcs[i].loc))
             return lcs[i].locType;
     }
     return LocEnum.NONE;
  }
 
-$(document).ready(function() { 
+$(document).ready(function() {
     $("#restart").click(function() {
         newGame();
-    }); 
+    });
     $('#posPara').hide();
     $("#eval").click(function(){
         $('#posPara').toggle('show');
-    }); 
+    });
     // attach mouse click handler to each div sqare
-    // also, add html tag holding each piece image 
+    // also, add html tag holding each piece image
     for (var j=1; j<9; j++) {
         for (var i=0; i<8; i+=2) {
             var iIndex = i + ((j+1) % 2)
             //build strings #a1 - #h8
             var id = rowCol2Id(iIndex, j);
-            var imgId = imageId(iIndex, j) 
+            var imgId = imageId(iIndex, j)
             $('#'+id).click(onClick);
             var tag = buildTag(imgId, noPiece);
-            $('#'+id).html(tag);   
+            $('#'+id).html(tag);
         }
     }
     newGame();
@@ -237,14 +237,14 @@ function newGame() {
         var inits = findInitials(result.legalMoves)
         clearHighlights();
         addHighlights(inits);
-    }}) 
+    }})
 }
 
 function onClick(event: Event) {
     var loc = idToLoc(this.id);
     var highs = game.highlights;
     var theType = findLocInLCs(loc, highs);
-    if (theType == LocEnum.INITIAL) { 
+    if (theType == LocEnum.INITIAL) {
         clearSelected();
         clearHighlights();
         addSelected(loc);
@@ -311,13 +311,13 @@ $(document).keydown(function(e: KeyboardEvent) {
     clearSelected();
     var inits = findInitials(game.legalMoves)
     clearHighlights();
-    addHighlights(inits); 
+    addHighlights(inits);
   }
 });
 
-var whitePiece: string = "checker_1_plain_48.png"; 
+var whitePiece: string = "checker_1_plain_48.png";
 var blackPiece: string = "checker_2_plain_48.png";
-var whiteKing: string = "checker_1_king_48.png"; 
+var whiteKing: string = "checker_1_king_48.png";
 var blackKing: string = "checker_2_king_48.png";
 var noPiece: string = "no_image_48.png";
 
@@ -338,11 +338,13 @@ function locToImgId(loc: Loc) {
 }
 
 function clearPieces() {
-    for (var j=1; j<9; j++) {
-        for (var i=0; i<8; i+=2) {
-            var iIndex = i + ((j+1) % 2)
-            var imgId = imageId(iIndex, j) 
-            $('#'+imgId).attr("src", noPiece);
+    const fullUrl = `${window.location.origin}/${noPiece}`; // Construct full URL
+
+    for (var j = 1; j < 9; j++) {
+        for (var i = 0; i < 8; i += 2) {
+            var iIndex = i + ((j + 1) % 2);
+            var imgId = imageId(iIndex, j);
+            $('#' + imgId).attr("src", fullUrl); // Set the src attribute to the full URL
         }
     }
 }
@@ -372,7 +374,7 @@ function findInitials(ms: Moves): LocationClick[] {
     for (var i=0; i< legalMoves.length; i++) {
         var locs = legalMoves[i].locs;
         var theLocClick = new LocationClick(locs[0], LocEnum.INITIAL)
-        theLocs = pushUniqueLC(theLocClick, theLocs); 
+        theLocs = pushUniqueLC(theLocClick, theLocs);
     }
     return theLocs;
 }
@@ -389,7 +391,7 @@ function findContinues(ms: Moves, loc: Loc): LocationClick[] {
             var len = move.locs.length;
             if (index < len-2) { //if the next loc is not the last loc in the move
                 var multi = new LocationClick(move.locs[index+1], LocEnum.MULTI);
-                theLCs = pushUniqueLC(multi, theLCs); 
+                theLCs = pushUniqueLC(multi, theLCs);
             } else if (index == len-2) { //if the last loc in the move
                 var final = new LocationClick(move.locs[index+1], LocEnum.FINAL);
                 theLCs = pushUniqueLC(final, theLCs);
@@ -402,7 +404,7 @@ function findContinues(ms: Moves, loc: Loc): LocationClick[] {
 function findLocInMove(theLoc: Loc, theMove: Move): number {
     for (var i=0; i < theMove.locs.length; i++) {
         if (compareLocs(theLoc, theMove.locs[i]))
-            return i;    
+            return i;
     }
     return -1;
 }
@@ -412,30 +414,35 @@ function setLatestMove(move: Loc[]) {
 }
 
 function updateGameBoard(squares: Square[]) {
-    // clear the board
-    clearPieces()
+    // Clear the board
+    clearPieces();
 
-    // set the pieces
+    // Construct full URLs for each piece type
+    const whitePieceUrl = `${window.location.origin}/${whitePiece}`;
+    const blackPieceUrl = `${window.location.origin}/${blackPiece}`;
+    const whiteKingUrl = `${window.location.origin}/${whiteKing}`;
+    const blackKingUrl = `${window.location.origin}/${blackKing}`;
+
+    // Set the pieces
     for (var i = 0; i < squares.length; i++) {
         var loc = squares[i].loc;
         var id = locToId(loc);
         var imgId: string = locToImgId(loc);
         var imgName: string;
-        if (squares[i].pieceType == 1) { //if regular piece
-            if (squares[i].color == 1) 
-                imgName = whitePiece;
-            else 
-                imgName = blackPiece;
-        } else { //king
-             if (squares[i].color == 1) 
-                imgName = whiteKing;
-            else 
-                imgName = blackKing;
+
+        // Determine the image URL based on piece type and color
+        if (squares[i].pieceType == 1) { // If regular piece
+            imgName = squares[i].color == 1 ? whitePieceUrl : blackPieceUrl;
+        } else { // If king
+            imgName = squares[i].color == 1 ? whiteKingUrl : blackKingUrl;
         }
-        $('#'+imgId).attr("src", imgName);
+
+        // Set the image source
+        $('#' + imgId).attr("src", imgName);
     }
-    //autoPlay()
+    // autoPlay();
 }
+
 
 //function autoPlay() {
     //$.ajax ({url: "http://localhost:3000/computerMove", success: function(result) {

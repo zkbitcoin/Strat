@@ -1,0 +1,31 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module StratWeb.YesodMain where  -- Correct module name
+
+import Network.Wai
+import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.Cors (simpleCors)
+import Network.HTTP.Types (status200)
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Encoding as TLE
+
+-- Define the webInit function
+webInit :: IO ()
+webInit = do
+    putStrLn "Starting checkers web server on port 8080..."
+    run 3000 (simpleCors app)
+
+-- Simple application handler
+app :: Application
+app request respond = do
+    let responseText = "Hello, Checkers!"
+    respond $ responseLBS status200 [("Content-Type", "text/plain")] (TLE.encodeUtf8 $ TL.pack responseText)
+
+-- Main function to run the server
+main :: IO ()
+main = do
+    putStrLn "Enter a command:"
+    command <- getLine
+    case command of
+        "checkersWeb" -> webInit
+        _              -> putStrLn "Unknown command."
