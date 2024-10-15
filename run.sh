@@ -1,7 +1,4 @@
 #!/bin/sh
-
-[ -f "/home/pivx/.ghcup/env" ] && . "/home/pivx/.ghcup/env" # ghcup-env
-
 {
   if lsof -i :8003; then
     echo "A process is still using the port. Killing it..."
@@ -14,6 +11,7 @@
     stack exec ${HOME}/go/src/blockbook/games/ai/server/Strat/dist-newstyle/build/aarch64-osx/ghc-9.4.8/Strat-0.1.0.0/x/strat-exe/build/strat-exe/strat-exe -- -n checkersWeb
   elif [ "$(uname)" = "Linux" ]; then
     # Linux
+    [ -f "/home/pivx/.ghcup/env" ] && . "/home/pivx/.ghcup/env" # ghcup-env
     stack exec ${HOME}/go/src/blockbook/games/ai/server/Strat/dist-newstyle/build/x86_64-linux/ghc-9.4.8/Strat-0.1.0.0/x/strat-exe/build/strat-exe/strat-exe -- -n checkersWeb
   else
     echo "Unsupported OS"
