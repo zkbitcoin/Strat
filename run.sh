@@ -1,5 +1,7 @@
 #!/bin/sh
 
+[ -f "/home/pivx/.ghcup/env" ] && . "/home/pivx/.ghcup/env" # ghcup-env
+
 {
   if lsof -i :8003; then
     echo "A process is still using the port. Killing it..."
