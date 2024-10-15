@@ -20,11 +20,13 @@ import Yesod hiding (insert)
 import Yesod.Static
 import qualified Data.Map.Strict as M
 import Network.Wai.Middleware.Cors
-import Network.Wai (Middleware)
-import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.Warp (run, defaultSettings, setPort, setHost)
+import Network.Wai.Handler.WarpTLS (runTLS, tlsSettings)
 import Configuration.Dotenv (loadFile, defaultConfig)
 import System.Environment (lookupEnv)
 import qualified Data.ByteString.Char8 as BS
+
+import Data.Maybe (fromMaybe)
 
 staticFilesList "src/StratWeb/Static" ["gameboard.html", "bundle.js", "checker_1_king_48.png",
     "checker_1_plain_48.png", "checker_2_king_48.png", "checker_2_plain_48.png",
@@ -184,7 +186,6 @@ corsPolicy = do
 
 webInit :: IO ()
 webInit = do
-
     loadFile defaultConfig
 
     counter <- newIORef 0
@@ -193,21 +194,41 @@ webInit = do
 
     -- Create the application
     let app = GameApp { getStatic = s, getCounter = counter, getMap = newMap }
-
-    -- Convert to Wai Application
     waiApp <- toWaiApp app
 
-    -- Define CORS middleware
-    corsPolicy' <- corsPolicy  -- Get the CORS policy
-    let corsMiddleware :: Middleware
-        corsMiddleware = cors (const $ Just corsPolicy')
+    corsPolicy' <- corsPolicy
+    let corsMiddleware = cors (const $ Just corsPolicy')
+    let appWithCors = corsMiddleware waiApp
 
-    -- Get the PORT from environment or default to 3000
+    -- Get the PORT and SSL flag from environment or default
     portEnv <- lookupEnv "PORT"
     let port = maybe 3000 read portEnv :: Int  -- Default to 3000
 
-    putStrLn $ "Starting server on port: " ++ show port  -- Display the port to the console
+    sslKeyPathEnv <- lookupEnv "SSL_KEY_PATH"
+    sslCrtPathEnv <- lookupEnv "SSL_CRT_PATH"
 
-    -- Start the server
-    run port $ corsMiddleware waiApp
+    let sslKeyPath = fromMaybe "defaultKeyPath.pem" sslKeyPathEnv
+    let sslCrtPath = fromMaybe "defaultCrtPath.pem" sslCrtPathEnv
 
+    let useSSL = not (null sslKeyPath && null sslCrtPath)
+
+    -- Start the server with or without SSL
+    if useSSL
+        then startSSLServer port sslKeyPath sslCrtPath appWithCors
+        else startNonSSLServer port appWithCors
+
+    putStrLn $ "Starting server on port: " ++ show port
+
+-- Start SSL server
+startSSLServer :: Int -> String -> String -> Application -> IO ()
+startSSLServer port sslKeyPath sslCrtPath app = do
+   let tlsSettings' = tlsSettings sslKeyPath sslCrtPath
+   let settings = setPort port . setHost "0.0.0.0" $ defaultSettings
+   -- Run the server with TLS
+   runTLS tlsSettings' settings app
+
+-- Start non-SSL server
+startNonSSLServer :: Int -> Application -> IO ()
+startNonSSLServer port app = do
+    -- Run the server without TLS
+    run port app

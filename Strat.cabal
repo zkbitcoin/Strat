@@ -54,6 +54,7 @@ library
                 , vector
                 , simple-logger
                 , warp
+                , warp-tls
                 , wai
                 , wai-extra
                 , wai-cors
@@ -114,6 +115,7 @@ executable strat-exe
                 , yesod-core
                 , yesod-static
                 , warp
+                , warp-tls
                 , wai
                 , wai-extra
                 , wai-cors
@@ -182,6 +184,7 @@ executable test-as-exe
                 , vector
                 , simple-logger
                 , warp
+                , warp-tls
                 , wai
                 , wai-extra
                 , wai-cors
@@ -250,6 +253,7 @@ test-suite StratTreeTest
                 , vector
                 , simple-logger
                 , warp
+                , warp-tls
                 , wai
                 , wai-extra
                 , wai-cors
