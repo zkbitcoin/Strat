@@ -10367,7 +10367,7 @@ function submitMove(id) {
         clearHighlights();
         var json = JSON.stringify(new_move);
         addCSSClassToLoc(locs, "playermove");
-        $.ajax({ url: "http://localhost:3000/playerMove", method: "post", data: json, success: function (result) {
+        $.ajax({ url: `${server_url}/playerMove`, method: "post", data: json, success: function (result) {
                 $("#posPara").html(result.msg);
                 setLegalMoves(result.legalMoves);
                 setLatestMove(result.latestMove.move);
@@ -10457,7 +10457,7 @@ $(document).ready(function () {
     newGame();
 });
 function newGame() {
-    $.ajax({ url: "http://localhost:3000/new", success: function (result) {
+    $.ajax({ url: `${server_url}/new`, success: function (result) {
             setLegalMoves(result.legalMoves);
             setLatestMove(result.latestMove.move);
             updateGameBoard(result.board);

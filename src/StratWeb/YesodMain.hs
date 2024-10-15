@@ -22,22 +22,9 @@ import qualified Data.Map.Strict as M
 import Network.Wai.Middleware.Cors
 import Network.Wai (Middleware)
 import Network.Wai.Handler.Warp (run)
+import Configuration.Dotenv (loadFile, defaultConfig)
 import System.Environment (lookupEnv)
 import qualified Data.ByteString.Char8 as BS
-
-corsPolicy :: IO CorsResourcePolicy
-corsPolicy = do
-    corsOriginsEnv <- lookupEnv "CORS_ORIGINS"
-
-    let origins = case corsOriginsEnv of
-            Just originsStr -> map BS.pack $ words $ map (\c -> if c == ',' then ' ' else c) originsStr
-            Nothing         -> [BS.pack "http://localhost:3000", BS.pack "http://localhost:4000"] -- Default origins
-
-    return $ simpleCorsResourcePolicy
-        { corsOrigins = Just (origins, True)
-        , corsMethods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
-        , corsRequestHeaders = ["Content-Type", "Accept", "If-None-Match"]
-        }
 
 staticFilesList "src/StratWeb/Static" ["gameboard.html", "bundle.js", "checker_1_king_48.png",
     "checker_1_plain_48.png", "checker_2_king_48.png", "checker_2_plain_48.png",
@@ -179,15 +166,30 @@ postPlayerMoveR = do
             liftIO $ putStrLn $ " ** Computer's move: " ++ show (rootLabel (WR.getNode wrapper))
             returnJson j
 
+corsPolicy :: IO CorsResourcePolicy
+corsPolicy = do
+    corsOriginsEnv <- lookupEnv "CORS_ORIGINS"
+
+    let origins = case corsOriginsEnv of
+            Just originsStr -> map BS.pack $ words $ map (\c -> if c == ',' then ' ' else c) originsStr
+            Nothing         -> [BS.pack "http://localhost:8003", BS.pack "http://localhost:4000"] -- Default origins
+
+    putStrLn $ "Setting corsOrigins: " ++ show origins
+
+    return $ simpleCorsResourcePolicy
+        { corsOrigins = Just (origins, True)
+        , corsMethods = ["GET", "POST", "OPTIONS", "PUT", "DELETE"]
+        , corsRequestHeaders = ["Content-Type", "Accept", "If-None-Match"]
+        }
+
 webInit :: IO ()
 webInit = do
+
+    loadFile defaultConfig
+
     counter <- newIORef 0
     newMap <- newIORef emptyMap
     s <- staticDevel "src/StratWeb/Static"
-
-    putStrLn "\n--------------------------------------------------------"
-    putStrLn "To play, point your web browser to http://localhost:3000"
-    putStrLn "--------------------------------------------------------\n"
 
     -- Create the application
     let app = GameApp { getStatic = s, getCounter = counter, getMap = newMap }
@@ -202,7 +204,9 @@ webInit = do
 
     -- Get the PORT from environment or default to 3000
     portEnv <- lookupEnv "PORT"
-    let port = maybe 3000 read portEnv :: Int
+    let port = maybe 3000 read portEnv :: Int  -- Default to 3000
+
+    putStrLn $ "Starting server on port: " ++ show port  -- Display the port to the console
 
     -- Start the server
     run port $ corsMiddleware waiApp
