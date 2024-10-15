@@ -10547,15 +10547,9 @@ var noPiece = "no_image_48.png";
 //    return "<div class='img-wrapper'><img class='piece' id=" + imgId + " src=" + imgName + "></div>";
 //}
 function buildTag(imgId, imgName) {
-    // Check if window.bundleScriptUrl is defined
-    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
-
-    // Construct full URL for the image
-    const fullUrl = scriptOrigin ? `${scriptOrigin}/static/${imgName}` : imgName;
-
     // Create the img element using jQuery
     const imgElement = $("<img>")
-        .attr("src", fullUrl) // Set the src attribute to the full URL
+        .attr("src", `${server_url}/static/${imgName}`) // Set the src attribute to the full URL
         .attr("class", "piece") // Set the class
         .attr("id", imgId) // Set the id
         [0]; // Get the underlying DOM element
@@ -10576,19 +10570,13 @@ function locToImgId(loc) {
     return imgPrefix + _id;
 }
 function clearPieces() {
-    // Check if window.bundleScriptUrl is defined
-    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
-
-    // Construct full URL for noPiece
-    const fullUrl = scriptOrigin ? `${scriptOrigin}/static/${noPiece}` : noPiece;
-
     for (let j = 1; j < 9; j++) {
         for (let i = 0; i < 8; i += 2) {
             const iIndex = i + ((j + 1) % 2);
             const imgId = imageId(iIndex, j);
             const imgElement = $('#' + imgId);
 
-            imgElement.attr("src", fullUrl); // Set the src attribute to the full URL
+            imgElement.attr("src", `${server_url}/static/${noPiece}`); // Set the src attribute to the full URL
             imgElement[0].crossOrigin = "Anonymous"; // Set the crossOrigin property
         }
     }
@@ -10656,14 +10644,11 @@ function updateGameBoard(squares) {
     // Clear the board
     clearPieces();
 
-    // Check if window.bundleScriptUrl is defined
-    const scriptOrigin = window.bundleScriptUrl ? new URL(window.bundleScriptUrl).origin : '';
-
     // Construct full URLs for each piece type
-    const whitePieceUrl = scriptOrigin ? `${scriptOrigin}/static/${whitePiece}` : whitePiece;
-    const blackPieceUrl = scriptOrigin ? `${scriptOrigin}/static/${blackPiece}` : blackPiece;
-    const whiteKingUrl = scriptOrigin ? `${scriptOrigin}/static/${whiteKing}` : whiteKing;
-    const blackKingUrl = scriptOrigin ? `${scriptOrigin}/static/${blackKing}` : blackKing;
+    const whitePieceUrl = `${server_url}/static/${whitePiece}`;
+    const blackPieceUrl = `${server_url}/static/${blackPiece}`;
+    const whiteKingUrl = `${server_url}/static/${whiteKing}`;
+    const blackKingUrl = `${server_url}/static/${blackKing}`;
 
     // Set the pieces
     for (var i = 0; i < squares.length; i++) {
