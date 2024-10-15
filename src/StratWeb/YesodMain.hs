@@ -222,7 +222,7 @@ webInit = do
 -- Start SSL server
 startSSLServer :: Int -> String -> String -> Application -> IO ()
 startSSLServer port sslKeyPath sslCrtPath app = do
-   let tlsSettings' = tlsSettings sslKeyPath sslCrtPath
+   let tlsSettings' = tlsSettings sslCrtPath sslKeyPath
    let settings = setPort port . setHost "0.0.0.0" $ defaultSettings
    -- Run the server with TLS
    runTLS tlsSettings' settings app
