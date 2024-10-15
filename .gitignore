@@ -38,3 +38,4 @@ TAGS
 output.file
 report.html
 *.log
+.env
